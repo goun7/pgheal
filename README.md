@@ -249,6 +249,11 @@ npm run build       # dist/
 Managed tuning SaaS products charge $149–$399+/month and upload your query
 samples. pgHeal's proof runs **inside your database** — nothing leaves it.
 
+## Terms
+
+Use of pgHeal is subject to the [Terms of Use](./TERMS.md). Team customers
+additionally sign a license agreement with an SLA schedule.
+
 ## License
 
 MIT
