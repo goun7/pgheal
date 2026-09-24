@@ -18,10 +18,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24 bundles an npm client that supports OIDC trusted publishing;
+          # the step below pins npm >= 11.5.1 regardless of the bundled version
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
-          # NPM_TOKEN secret must be a granular token with publish rights to "pgheal"
+          # publishing uses npm trusted publishing (OIDC, id-token: write above) —
+          # no NPM_TOKEN secret needed after the package + publisher are configured
+          # on npmjs.com (org/user goun7, repo pgheal, workflow release.yml)
 
+      - run: npm install -g npm@^11 # trusted publishing needs npm >= 11.5.1
       - run: npm ci
 
       - name: Typecheck + tests + build

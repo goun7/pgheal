@@ -1,0 +1,53 @@
+name: License renewal reminders
+
+# Vendor hygiene: every Monday, audit the issued-keys ledger and open a
+# reminder issue for keys expiring soon. The ledger (pgheal-licenses.ndjson,
+# gitignored) is appended automatically by `pgheal license issue` at every
+# sale/renewal — zero manual bookkeeping.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm install -g npm@^11 && npm ci && npm run build
+
+      - name: Audit ledger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f pgheal-licenses.ndjson ]; then
+            echo "::notice::no license ledger yet — nothing to audit"
+            exit 0
+          fi
+          OUT=$(node dist/index.js license audit --key pgheal-licenses.ndjson)
+          echo "$OUT"
+          if echo "$OUT" | grep -qE "❌|⏳"; then
+            gh issue create \
+              --title "License hygiene: expiring/expired keys need attention" \
+              --body "Weekly audit output:
+
+\`\`\`
+$OUT
+\`\`\`
+
+Action: contact the customer for renewal (they can also self-serve: new
+payment + \`paid\` label on their issue → fresh key is issued automatically)." \
+              --label "vendor-task" || \
+            gh issue create --title "License hygiene: expiring/expired keys" --body "$OUT"
+          else
+            echo "all licenses healthy"
+          fi

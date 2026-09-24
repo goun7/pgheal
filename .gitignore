@@ -11,3 +11,6 @@ pgheal-report-*
 PROJE_KAGIDI.md
 pgheal_PROJE_KAGIDI_PRIVATE.md
 .freebuff/
+pgheal-licenses.ndjson
+pgheal-report*
+pgheal.sarif

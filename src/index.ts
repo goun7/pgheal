@@ -152,11 +152,21 @@ program
         secret,
       );
       console.log(key);
-      console.error(`\nissued: sub=${opts.sub ?? "customer"} days=${opts.days ?? 30} seats=${opts.seats ?? 5}`);
+      const record = {
+        sub: opts.sub ?? "customer",
+        exp: Math.floor(Date.now() / 1000) + (opts.days ?? 30) * 86_400,
+        seats: opts.seats ?? 5,
+        issuedAt: new Date().toISOString(),
+      };
+      // ledger keeps vendor-side hygiene auditable (pgheal license audit reads it)
+      const { appendFile } = await import("node:fs/promises");
+      await appendFile("pgheal-licenses.ndjson", JSON.stringify(record) + "\n", "utf8").catch(() => undefined);
+      console.error(`\nissued: sub=${record.sub} days=${opts.days ?? 30} seats=${record.seats} → recorded in pgheal-licenses.ndjson`);
       console.error("deliver with:  customer runs  pgheal license activate --key <key>  (secret never leaves the vendor)");
       return;
     }
-    if (!secret) {
+    if (!secret && action !== "audit") {
+      // audit is vendor-side hygiene over the ledger; it needs no signing secret
       console.error("error: PGHEAL_LICENSE_SECRET is not set");
       process.exitCode = 1;
       return;
@@ -178,13 +188,49 @@ program
       }
       return;
     }
+    if (action === "audit") {
+      // vendor-side hygiene: report expired keys and upcoming expiries from an
+      // issued-keys ledger (JSON lines, one per issue) maintained by the vendor
+      const ledgerPath = opts.key ?? "pgheal-licenses.ndjson";
+      let raw = "";
+      try {
+        raw = await import("node:fs/promises").then((fs) => fs.readFile(ledgerPath, "utf8"));
+      } catch {
+        console.error(`error: ledger not found: ${ledgerPath} (pass --key <path>; JSON lines: {sub, exp, seats, issuedAt})`);
+        process.exitCode = 1;
+        return;
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const rows = raw
+        .split("\n")
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l) as { sub: string; exp: number; seats?: number; issuedAt?: string })
+        .map((r) => ({
+          sub: r.sub,
+          seats: r.seats ?? 0,
+          issuedAt: r.issuedAt ?? "",
+          daysLeft: Math.floor((r.exp - now) / 86_400),
+        }))
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+      const expired = rows.filter((r) => r.daysLeft <= 0);
+      const soon = rows.filter((r) => r.daysLeft > 0 && r.daysLeft <= 7);
+      console.log(`ledger: ${rows.length} key(s) — ${expired.length} expired, ${soon.length} expiring within 7 days`);
+      for (const r of expired) console.log(`❌ ${r.sub} expired ${-r.daysLeft}d ago (seats ${r.seats}, issued ${r.issuedAt || "?"})`);
+      for (const r of soon) console.log(`⏳ ${r.sub} expires in ${r.daysLeft}d (seats ${r.seats}, issued ${r.issuedAt || "?"})`);
+      if (rows.length - expired.length - soon.length > 0) {
+        console.log(`✅ ${rows.length - expired.length - soon.length} active (>7d)`);
+      }
+      console.log("\nrenewal flow: customer adds `paid` label on a renewal note → fulfillment issues a fresh key automatically");
+      process.exitCode = soon.length > 0 ? 0 : 0;
+      return;
+    }
     if (action === "status") {
       const res = verifyLicense(process.env.PGHEAL_LICENSE_KEY ?? "", secret);
       console.log(res.ok ? `✅ ${res.info!.sub} · ${res.info!.daysRemaining} days left` : `❌ ${res.reason ?? "no key set"}`);
       process.exitCode = res.ok ? 0 : 1;
       return;
     }
-    console.error(`unknown action: ${action} (use activate | status | demo)`);
+    console.error(`unknown action: ${action} (use activate | status | issue | audit | demo)`);
     process.exitCode = 1;
   });
 

@@ -228,7 +228,8 @@ cost 16841 → 16510). The same flow ships in the CLI you are about to run.
 ## Releasing
 
 Changesets-managed: PRs add a `.changeset/*.md`; the Release workflow opens a
-version PR and publishes to npm **with provenance** (`id-token: write`),
+version PR and publishes to npm via **trusted publishing (OIDC)** — no
+`NPM_TOKEN` secret is involved (`id-token: write`, npm ≥ 11.5.1 on Node 24),
 only after the real-database E2E suite passes. Publish contents are audited:
 `dist/ + README + LICENSE` — no sources, tests or env files.
 
