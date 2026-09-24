@@ -8,7 +8,7 @@ import { sendSlackNotification } from "./notify/slack.js";
 import { writeFile } from "node:fs/promises";
 import { renderHtmlReport } from "./report/html.js";
 import { renderSarif } from "./report/sarif.js";
-import { verifyLicense, demoLicense } from "./license.js";
+import { verifyLicense, demoLicense, signLicense } from "./license.js";
 import { loadWorkspace, runWorkspace } from "./workspace.js";
 
 const program = new Command();
@@ -130,10 +130,30 @@ program
   .argument("<action>", "activate | status | demo")
   .option("--key <key>", "license key (for activate; otherwise PGHEAL_LICENSE_KEY)")
   .option("--secret <secret>", "signing secret (otherwise PGHEAL_LICENSE_SECRET)")
+  .option("--issue", "vendor mode: issue a new key (requires PGHEAL_LICENSE_SECRET)", false)
+  .option("--sub <id>", "issue: customer id")
+  .option("--days <n>", "issue: validity in days", parseInt)
+  .option("--seats <n>", "issue: database/seat count", parseInt)
   .action(async (action, opts) => {
     const secret = opts.secret ?? process.env.PGHEAL_LICENSE_SECRET;
     if (action === "demo") {
       console.log(demoLicense(secret ?? "pgheal-dev-secret"));
+      return;
+    }
+    if (action === "issue" || opts.issue) {
+      // vendor-side automation: one command from paid issue to deliverable key
+      const key = signLicense(
+        {
+          sub: opts.sub ?? "customer",
+          exp: Math.floor(Date.now() / 1000) + (opts.days ?? 30) * 86_400,
+          seats: opts.seats ?? 5,
+          features: ["autonomous-pr", "slack", "multi-repo", "priority-support"],
+        },
+        secret,
+      );
+      console.log(key);
+      console.error(`\nissued: sub=${opts.sub ?? "customer"} days=${opts.days ?? 30} seats=${opts.seats ?? 5}`);
+      console.error("deliver with:  customer runs  pgheal license activate --key <key>  (secret never leaves the vendor)");
       return;
     }
     if (!secret) {

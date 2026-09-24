@@ -1,4 +1,6 @@
-# pgHeal — PostgreSQL Autonomous Index & PR Robot
+# pgHeal
+
+![demo](docs/demo-card.svg) — PostgreSQL Autonomous Index & PR Robot
 
 > **HypoPG-proven. Zero data exfiltration. Delivered as a GitHub PR.**
 
@@ -243,8 +245,17 @@ npm run build       # dist/
 | Plan | Price | Includes |
 |---|---|---|
 | **Free (this repo)** | $0 | scan · doctor · explain · SARIF · Slack · 1 database · community support |
-| **Team license** | $49/mo per 5 databases | everything in Free + multi-repo `workspace` orchestration + HMAC license key + priority support |
+| **Team — 5 databases** | $49/mo | everything in Free + multi-repo `workspace` + priority support |
+| **Team XL — 20 databases** | $149/mo | Team + scheduled autonomous PRs (`autonomous-pr`) |
+| **Team XL+ — 100 databases** | $399/mo | Team XL + roadmap input + SLA credits |
 | **Sponsors tier** | from $5/mo | Team license included at the Team tier — [sponsor here](https://github.com/sponsors/goun7) |
+
+**How to buy (fully self-serve, no meetings):** sponsor at the Team tier or
+send $49/$149/$399 via a payment link you get by opening a
+[Team license request](https://github.com/goun7/pgheal/issues/new?template=team-license.yml)
+→ the `paid` label triggers automatic key delivery →
+`pgheal license activate --key pgheal_…`. Keys are HMAC-signed and verified
+offline; the signing secret never leaves the vendor.
 
 Managed tuning SaaS products charge $149–$399+/month and upload your query
 samples. pgHeal's proof runs **inside your database** — nothing leaves it.

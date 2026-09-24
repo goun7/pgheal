@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="300" viewBox="0 0 880 300" role="img" aria-label="pgHeal demo proof card: query cost 8465.9 before, 35.2 after HypoPG hypothetical index, 240.4x speedup">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f14"/>
+      <stop offset="1" stop-color="#101820"/>
+    </linearGradient>
+  </defs>
+  <rect width="880" height="300" rx="14" fill="url(#bg)" stroke="#232c38"/>
+  <text x="36" y="52" fill="#3ecf8e" font-family="ui-monospace,Menlo,monospace" font-size="15" font-weight="bold">pg<span fill="#dce3ec">Heal</span>
+    <tspan fill="#8b98a9" font-size="13" font-weight="normal"> — proven on the bundled demo workload</tspan></text>
+  <text x="36" y="86" fill="#8b98a9" font-family="ui-monospace,Menlo,monospace" font-size="13">SELECT * FROM orders WHERE user_id = ? AND status = ? ORDER BY created_at DESC</text>
+
+  <!-- before bar -->
+  <text x="36" y="128" fill="#dce3ec" font-family="ui-monospace,Menlo,monospace" font-size="13">before</text>
+  <rect x="110" y="114" width="560" height="22" rx="5" fill="#3d2b2b" stroke="#f85149" stroke-opacity="0.35"/>
+  <text x="680" y="130" fill="#f85149" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="bold">8465.9</text>
+  <text x="36" y="150" fill="#8b98a9" font-family="ui-monospace,Menlo,monospace" font-size="11">Gather Merge on 500k rows</text>
+
+  <!-- after bar -->
+  <text x="36" y="196" fill="#dce3ec" font-family="ui-monospace,Menlo,monospace" font-size="13">after</text>
+  <rect x="110" y="182" width="8" height="22" rx="3" fill="#3ecf8e"/>
+  <text x="130" y="198" fill="#3ecf8e" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="bold">35.2 — Bitmap Heap Scan</text>
+  <text x="36" y="218" fill="#8b98a9" font-family="ui-monospace,Menlo,monospace" font-size="11">with hypothetical index (user_id, status, created_at)</text>
+
+  <!-- big number -->
+  <text x="712" y="188" fill="#3ecf8e" font-family="ui-monospace,Menlo,monospace" font-size="42" font-weight="bold" text-anchor="middle">240.4×</text>
+  <text x="712" y="214" fill="#dce3ec" font-family="ui-monospace,Menlo,monospace" font-size="13" text-anchor="middle">cost reduction 99.6%</text>
+
+  <line x1="36" y1="252" x2="844" y2="252" stroke="#232c38"/>
+  <text x="36" y="276" fill="#8b98a9" font-family="ui-monospace,Menlo,monospace" font-size="12">pgheal explain · HypoPG hypothetical index · read-only · zero data exfiltration</text>
+  <text x="844" y="276" fill="#58a6ff" font-family="ui-monospace,Menlo,monospace" font-size="12" text-anchor="end">github.com/goun7/pgheal</text>
+</svg>

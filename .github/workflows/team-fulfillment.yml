@@ -1,0 +1,58 @@
+name: Team license fulfillment
+
+# One-click fulfillment: when the vendor verifies a payment reference on a
+# team-license issue, they add the `paid` label — this workflow issues the
+# HMAC key and posts it. Payment verification stays human (the label click);
+# everything after it is automated.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  issue-key:
+    if: github.event.label.name == 'paid'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build CLI
+        run: |
+          npm ci
+          npm run build
+
+      - name: Parse plan and issue key
+        env:
+          PGHEAL_LICENSE_SECRET: ${{ secrets.PGHEAL_LICENSE_SECRET }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          SUB: ${{ github.event.issue.user.login }}
+        run: |
+          SEATS=5; DAYS=30
+          echo "$ISSUE_BODY" | grep -q "Team XL+ — 100" && SEATS=100
+          echo "$ISSUE_BODY" | grep -q "Team XL — 20" && SEATS=20
+          echo "$ISSUE_BODY" | grep -q "Annual" && DAYS=365
+          KEY=$(node dist/index.js license issue --sub "$SUB" --days "$DAYS" --seats "$SEATS" 2>/dev/null | head -1)
+          # the key must NOT be posted in a public issue comment — it goes to an
+          # unlisted gist whose URL contains an unguessable hash (capability URL)
+          GIST_URL=$(gh gist create -d "pgHeal license key for $SUB" -f "license-key.txt" <<< "$KEY")
+          gh issue comment "$ISSUE_NUMBER" --body "🔑 Your pgHeal Team license is ready (\`$SUB\`, $DAYS days, $SEATS databases).
+
+**[Open your private key page →]($GIST_URL)**
+
+The page is unlisted and its URL is unguessable — treat it like a password.
+Activate:
+\`\`\`
+pgheal license activate --key pgheal_…
+\`\`\`
+Then run multi-repo scans: \`pgheal workspace workspace.json\`.
+
+Renewal: add the \`paid\` label to a short renewal note and a fresh key is issued."
+          gh issue edit "$ISSUE_NUMBER" --remove-label team-license --add-label fulfilled

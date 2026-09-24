@@ -1,0 +1,47 @@
+name: Team license request
+description: Request a pgHeal Team license (multi-repo workspace, priority support)
+title: "[Team] License request"
+labels: ["team-license"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **How this works (no meetings, minimal back-and-forth):**
+        1. Pay for the plan you want (see README §Pricing) and note the transaction ID.
+        2. Open this issue with the payment reference + your GitHub handle.
+        3. You receive the license key as an email-verified reply on this issue (private reply via support email if you prefer).
+        4. Run `pgheal license activate --key pgheal_...` — done. No meetings needed.
+  - type: input
+    id: github_handle
+    attributes:
+      label: GitHub handle
+      description: "Keys are issued per customer id; your handle is the default sub."
+      placeholder: "@yourhandle"
+    validations:
+      required: true
+  - type: input
+    id: payment_ref
+    attributes:
+      label: Payment reference (transaction ID)
+      description: "From GitHub Sponsors / Polar checkout. Verified before key issuance."
+    validations:
+      required: true
+  - type: dropdown
+    id: plan
+    attributes:
+      label: Plan
+      options:
+        - "Team — 5 databases, $49/mo"
+        - "Team XL — 20 databases, $149/mo"
+        - "Team XL+ — 100 databases, $399/mo"
+    validations:
+      required: true
+  - type: dropdown
+    id: term
+    attributes:
+      label: Term
+      options:
+        - "Monthly (auto-renew by invoice)"
+        - "Annual (2 months free)"
+    validations:
+      required: true
