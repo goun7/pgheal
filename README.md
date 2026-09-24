@@ -213,9 +213,10 @@ prove real speedups. Skips automatically when Docker is unavailable.
 
 ## Proven end-to-end
 
-The repo dogfoods itself: a scan of the bundled 500k-row demo workload opened
-**PR #1** — a shadow branch, a migration file, and a HypoPG proof table
-(`Limit → Index Scan`, cost 16841 → 16510).
+The repo dogfoods itself: during development, a scan of the bundled 500k-row
+demo workload opened a real pull request against this repository — shadow
+branch, migration file, and a HypoPG proof table (`Limit → Index Scan`,
+cost 16841 → 16510). The same flow ships in the CLI you are about to run.
 
 ## Known limitations (v0.4)
 
