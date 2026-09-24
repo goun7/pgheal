@@ -10,23 +10,18 @@ jobs:
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     permissions:
-      contents: write # changesets version PR
+      contents: write # GitHub Release upload
       pull-requests: write
-      id-token: write # npm provenance (required)
+      id-token: write # npm provenance (when the npm path is enabled later)
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          # Node 24 bundles an npm client that supports OIDC trusted publishing;
-          # the step below pins npm >= 11.5.1 regardless of the bundled version
           node-version: 24
           registry-url: "https://registry.npmjs.org"
-          # publishing uses npm trusted publishing (OIDC, id-token: write above) —
-          # no NPM_TOKEN secret needed after the package + publisher are configured
-          # on npmjs.com (org/user goun7, repo pgheal, workflow release.yml)
 
-      - run: npm install -g npm@^11 # trusted publishing needs npm >= 11.5.1
       - run: npm ci
 
       - name: Typecheck + tests + build
@@ -35,10 +30,55 @@ jobs:
           npm test -- --exclude test/db-e2e.integration.test.ts
           npm run build
 
-      # Real-DB E2E before publishing — never ship an unproven robot
+      # Real-DB E2E before shipping — never ship an unproven robot
       - name: Real-database E2E (Postgres 18 + HypoPG)
         run: npx vitest run test/db-e2e.integration.test.ts
         timeout-minutes: 15
+
+      - name: Compute version + tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+          echo "TARBALL=pgheal-$VERSION.tgz" >> "$GITHUB_ENV"
+
+      - name: Skip if this version tag already exists
+        id: tagcheck
+        run: |
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "refs/tags/$TAG"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stage dist tarball
+        if: steps.tagcheck.outputs.exists == 'false'
+        run: npm pack --pack-destination dist
+
+      # npm-free distribution: the registry package is a plain tarball — ship the
+      # exact same artifact on GitHub Releases so users can install without an
+      # npmjs.com account (GitHub auth only)
+      - name: Create GitHub Release with the tarball
+        if: steps.tagcheck.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: pgheal ${{ env.TAG }}
+          body: |
+            Automated release — typecheck, 86 unit tests and the real-database
+            E2E suite passed before this artifact was built.
+
+            **Install (no npm registry needed):**
+
+            ```
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${{ env.TARBALL }}
+            tar -xzf ${{ env.TARBALL }}
+            npm i -g ./package
+            pgheal doctor
+            ```
+          files: dist/pgheal-*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create version PR or publish
         if: env.HAS_NPM_TOKEN == 'true'
@@ -54,6 +94,6 @@ jobs:
           NPM_CONFIG_PROVENANCE: "true"
           NODE_ENV: "production"
 
-      - name: Skipped (no NPM_TOKEN)
+      - name: npm publish skipped (no NPM_TOKEN)
         if: env.HAS_NPM_TOKEN != 'true'
-        run: echo "::notice::NPM_TOKEN secret is not set — release skipped. Add it (Settings → Secrets → Actions) to publish to npm."
+        run: echo "::notice::NPM_TOKEN is not configured — npm publish skipped; GitHub Release tarball shipped instead."

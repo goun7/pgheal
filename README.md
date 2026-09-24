@@ -38,7 +38,22 @@ The demo DB (Postgres 18 + HypoPG + pg_stat_statements, 500k orders, no index on
 
 ## Local CLI
 
+**Install from the npm registry** (when published) or **without an npm
+account** — the same tarball ships on GitHub Releases:
+
 ```bash
+# registry install (npm account required only on the maintainer side)
+npm i -g pgheal
+
+# registry-free install: pull the release tarball from GitHub Releases
+curl -LO https://github.com/goun7/pgheal/releases/latest/download/pgheal-<version>.tgz
+tar -xzf pgheal-<version>.tgz && npm i -g ./package
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/goun7/pgheal && cd pgheal
 npm install && npm run build
 export DATABASE_URL=postgres://user:pass@host:5432/db
 
