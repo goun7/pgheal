@@ -4,7 +4,7 @@ import type { IndexCandidate } from "../types.js";
 
 export function indexName(candidate: IndexCandidate): string {
   const cols = candidate.expression ? `${candidate.columns[0]}_expr` : candidate.columns.join("_");
-  const suffix = candidate.method === "btree" ? "" : `_${candidate.method}`;
+  const suffix = candidate.method === "btree" ? "" : `_${candidate.method}`; // keeps hnsw/ivfflat distinct
   return `idx_${candidate.table}_${cols}${suffix}`.slice(0, 63); // PG identifier limit
 }
 
@@ -25,6 +25,12 @@ export function indexDdl(candidate: IndexCandidate, opts: { concurrently: boolea
     const col = candidate.columns[0] ?? "";
     const opclass = candidate.opclass ?? "vector_cosine_ops";
     return `CREATE ${concurrent}INDEX IF NOT EXISTS ${name} ON "${candidate.table}" USING hnsw ("${col}" ${opclass}) WITH (m = 16, ef_construction = 64);`;
+  }
+  if (candidate.method === "ivfflat") {
+    // pgvector IVFFlat: lists ≈ sqrt(rows) is the standard starting point
+    const col = candidate.columns[0] ?? "";
+    const opclass = candidate.opclass ?? "vector_cosine_ops";
+    return `CREATE ${concurrent}INDEX IF NOT EXISTS ${name} ON "${candidate.table}" USING ivfflat ("${col}" ${opclass}) WITH (lists = 100);`;
   }
   const cols = candidate.columns
     .map((c) => (candidate.opclass ? `"${c}" ${candidate.opclass}` : `"${c}"`))

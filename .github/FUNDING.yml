@@ -4,8 +4,10 @@ pgHeal is free, open-source software (MIT). Ways to support it or buy the
 Team license (multi-repo workspace, priority support — license key delivered
 automatically):
 
-- **Polar (preferred, works for Turkey-based maintainers):** https://polar.sh/goun7
 - **GitHub Sponsors:** https://github.com/sponsors/goun7
+
+(Polar shelf — uncomment when the account exists:
+# polar: goun7)
 
 Team tier sponsors/licensees get the multi-repo `workspace` feature and the
 priority-support SLA. See README §Pricing for plans.

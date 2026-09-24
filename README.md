@@ -5,8 +5,7 @@
 [![release](https://img.shields.io/github/v/release/goun7/pgheal?label=version)](https://github.com/goun7/pgheal/releases)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![node](https://img.shields.io/badge/node-20%2B-blue)
-[![sponsor](https://img.shields.io/badge/%E2%9D%A4-sponsor-eb4b4b)](https://github.com/sponsors/goun7)
-[![polar](https://img.shields.io/badge/buy%20team-polar.sh-25c2a1)](https://polar.sh/goun7) — PostgreSQL Autonomous Index & PR Robot
+[![sponsor](https://img.shields.io/badge/%E2%9D%A4-sponsor-eb4b4b)](https://github.com/sponsors/goun7) — PostgreSQL Autonomous Index & PR Robot
 
 > **HypoPG-proven. Zero data exfiltration. Delivered as a GitHub PR.**
 
@@ -112,6 +111,27 @@ pgheal scan --report-file report.md --html report.html
 `--html` writes a **self-contained** HTML report (no external assets, no telemetry):
 cost bars before/after, plan-node badges (btree/gin/brin), migration SQL, and the
 zero-exfiltration footer.
+
+## Vector workloads & expression indexes (v0.5+)
+
+pgHeal covers **pgvector** (RAG/LLM apps) with the same proof-or-silence
+discipline — plus one honest addition, because HypoPG cannot simulate HNSW or
+IVFFlat:
+
+- `<->` / `<=>` / `<#>` queries produce **HNSW candidates** with the
+  operator-matched opclass (`vector_l2_ops` / `vector_cosine_ops` /
+  `vector_ip_ops`) and an **IVFFlat alternative** (`WITH (lists = 100)`) for
+  the build-speed/recall trade-off.
+- Vector candidates are labeled **🟡 grounded, not proven**: pgHeal verifies
+  the extension, the column type, and proves the *filter* columns with a
+  hypothetical btree — the vector gain itself is clearly marked as an
+  estimate. `vector(n)` columns above 2000 dims get an automatic
+  **halfvec migration note** (indexable + half the memory).
+- `LOWER()/UPPER()/DATE()/::cast` predicates become **expression btree
+  candidates** that HypoPG *can* simulate — full planner proof, 🟡 not needed.
+
+`pgheal explain --analyze` executes the statement to measure the real plan —
+it is hard-gated to SELECT/WITH statements and read-only sessions.
 
 ## SARIF & GitHub code scanning
 
@@ -279,7 +299,7 @@ npm run build       # dist/
 | **Sponsors tier** | from $5/mo | Team license included at the Team tier — [Polar](https://polar.sh/goun7) · [GitHub Sponsors](https://github.com/sponsors/goun7) |
 
 **How to buy (fully self-serve, no meetings):** sponsor at the Team tier
-([Polar](https://polar.sh/goun7) or [GitHub Sponsors](https://github.com/sponsors/goun7))
+([GitHub Sponsors](https://github.com/sponsors/goun7))
 or send $49/$149/$399 via a payment link you get by opening a
 [Team license request](https://github.com/goun7/pgheal/issues/new?template=team-license.yml)
 → the `paid` label triggers automatic key delivery →

@@ -106,10 +106,10 @@ export async function simulateCandidate(
   void _config;
   const { client, hypopgAvailable } = deps;
 
-  // HNSW (pgvector) is NOT HypoPG-simulable: hypopg_create_index silently
-  // ignores the method and the plan never changes → the honest path is the
-  // "grounded" label, never a fake proof (paper §9: proof or silence).
-  if (candidate.method === "hnsw") {
+  // HNSW/IVFFlat (pgvector) are NOT HypoPG-simulable: hypopg_create_index
+  // silently ignores the method and the plan never changes → the honest path
+  // is the "grounded" label, never a fake proof (paper §9: proof or silence).
+  if (candidate.method === "hnsw" || candidate.method === "ivfflat") {
     return simulateGroundedVector(stmt, candidate, deps);
   }
 
@@ -224,6 +224,28 @@ async function simulateGroundedVector(
   if (!checks.colType) reasons.push(`column ${candidate.table}.${candidate.columns[0]} is not a vector type${checks.typeName ? ` (found: ${checks.typeName})` : ""}`);
   if (!hypopgAvailable) reasons.push("HypoPG not installed — filter columns cannot be proven either");
 
+  // v0.6 halfvec guidance: pgvector dims > 2000 cannot use plain `vector` in
+  // an hnsw/ivfflat index — the DDL must target halfvec. Surface it as an
+  // actionable note instead of a rejection.
+  let halfvecNote: string | undefined;
+  if (checks.typeName === "vector") {
+    const dims = await client
+      .withConnection(async (q) => {
+        const r = await q<{ n: string | null }>(
+          `SELECT (SELECT typmod - 4 FROM pg_attribute a
+             JOIN pg_class c ON c.oid = a.attrelid
+             WHERE c.relname = $1 AND a.attname = $2 AND a.attnum > 0 AND NOT a.attisdropped
+             LIMIT 1) AS n`,
+          [candidate.table, candidate.columns[0] ?? ""],
+        );
+        return r[0]?.n ? Number(r[0].n) : null;
+      })
+      .catch(() => null);
+    if (dims !== null && dims > 2000) {
+      halfvecNote = `column is vector(${dims}) — indexes require halfvec: ALTER TABLE ${candidate.table} ALTER COLUMN ${candidate.columns[0]} TYPE halfvec(${dims}); (halves index memory, fp16 precision)`;
+    }
+  }
+
   const result: SimulationResult = {
     candidate,
     before,
@@ -235,6 +257,9 @@ async function simulateGroundedVector(
     hypopgAvailable,
     proof: "grounded",
   };
+  if (halfvecNote) {
+    result.rejectionReason = [result.rejectionReason, halfvecNote].filter(Boolean).join(" | ");
+  }
   return result;
 }
 

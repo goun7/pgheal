@@ -89,7 +89,7 @@ program
   .command("explain")
   .description("Explain a SQL file or query string with before/after HypoPG simulation (proof table)")
   .argument("<query-or-file>", "SQL string or path to a .sql file")
-  .option("--analyze", "add ANALYZE to EXPLAIN (actually executes the query — read-only sessions only)", false)
+  .option("--analyze", "add ANALYZE to EXPLAIN (actually executes the query — SELECT-only, read-only sessions)", false)
   .option("--buffers", "add BUFFERS to EXPLAIN", false)
   .option("--html <path>", "write a self-contained HTML plan report")
   .action(async (q, opts) => {
@@ -98,6 +98,12 @@ program
     if (!/\s/.test(q) && q.endsWith(".sql")) {
       const fs = await import("node:fs/promises");
       sql = await fs.readFile(q, "utf8");
+    }
+    // v0.6 guard: --analyze executes the statement — never allow writes through it
+    if (opts.analyze && /\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|CREATE|ALTER|DROP|GRANT|REVOKE|VACUUM|CALL|DO)\b/i.test(sql)) {
+      console.error("error: --analyze executes the statement; only SELECT/WITH (read-only) statements are allowed.");
+      process.exitCode = 1;
+      return;
     }
     const out = await explainQuery(config, sql, { analyze: opts.analyze === true, buffers: opts.buffers === true });
     console.log(out);

@@ -61,8 +61,8 @@ export interface IndexCandidate {
   table: string;
   columns: string[];
   /** btree (default) · gin (arrays/JSONB/trgm) · brin (append-only ranges) ·
-   *  hnsw (pgvector distance) — hnsw is NOT HypoPG-simulable (see simulate.ts) */
-  method: "btree" | "gin" | "brin" | "hnsw";
+   *  hnsw / ivfflat (pgvector distance) — neither is HypoPG-simulable */
+  method: "btree" | "gin" | "brin" | "hnsw" | "ivfflat";
   /** operator class, e.g. text_pattern_ops for left-anchored LIKE on non-C collations */
   opclass?: string | undefined;
   /** expression variant, e.g. 'LOWER("email")' — btree on an expression (HypoPG CAN simulate these) */

@@ -343,6 +343,17 @@ export function makeCandidates(stmt: StatementStats): IndexCandidate[] {
         fromQueryid: stmt.queryid,
         reason: `pgvector distance ordering on ${col} (${vecOp ?? "<=>"}) — top statement ${fp} (${stmt.calls} calls)`,
       });
+      // v0.6: IVFFlat as the alternative candidate — faster to build, lower
+      // recall; the customer picks per their accuracy/latency trade-off.
+      out.push({
+        table,
+        columns: [col],
+        method: "ivfflat",
+        opclass: vecOpclass,
+        isUnique: false,
+        fromQueryid: stmt.queryid,
+        reason: `pgvector distance on ${col} (${vecOp ?? "<=>"}) — IVFFlat alternative (faster build, lower recall; lists≈sqrt(rows))`,
+      });
     }
 
     // EXPRESSION candidates: LOWER/UPPER/DATE/::cast predicates get a

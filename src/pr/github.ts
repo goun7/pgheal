@@ -149,11 +149,16 @@ export async function deliverPr(config: Config, payload: PrPayload): Promise<PrR
     };
   }
 
+  // auth: GitHub App installation token (v0.6, no long-lived PAT) when the app
+  // env is set; otherwise the classic GITHUB_TOKEN PAT. App mode wins.
+  const { resolveAuthToken } = await import("./ghapp.js");
+  const { token, mode } = await resolveAuthToken(config);
   const octokit = new Octokit({
-    auth: config.githubToken,
+    auth: token,
     // supports GitHub Enterprise Server and local mock servers (tests)
     ...(config.githubApiUrl ? { baseUrl: config.githubApiUrl } : {}),
   });
+  void mode; // surfaced by callers via prResult message when needed
   const { data: baseRef } = await octokit.rest.git.getRef({
     owner,
     repo,
