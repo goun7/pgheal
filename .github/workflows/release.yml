@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # changesets version PR
+      pull-requests: write
+      id-token: write # npm provenance (required)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          # NPM_TOKEN secret must be a granular token with publish rights to "pgheal"
+
+      - run: npm ci
+
+      - name: Typecheck + tests + build
+        run: |
+          npm run typecheck
+          npm test -- --exclude test/db-e2e.integration.test.ts
+          npm run build
+
+      # Real-DB E2E before publishing — never ship an unproven robot
+      - name: Real-database E2E (Postgres 18 + HypoPG)
+        run: npx vitest run test/db-e2e.integration.test.ts
+        timeout-minutes: 15
+
+      - name: Create version PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: npm run release
+          version: npm run version
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          NODE_ENV: "production"

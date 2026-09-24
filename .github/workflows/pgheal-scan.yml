@@ -1,0 +1,58 @@
+name: pgHeal scheduled scan
+
+on:
+  schedule:
+    # every workday at 07:00 UTC — off-peak for most production databases
+    - cron: "0 7 * * 1-5"
+  workflow_dispatch: {} # manual trigger
+
+# least privilege: report/SARIF upload only — automated PRs stay off (PGHEAL_WRITE=0)
+permissions:
+  contents: read
+  security-events: write # SARIF → code scanning
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      SCAN_ENABLED: ${{ secrets.PGHEAL_DATABASE_URL != '' }}
+      DATABASE_URL: ${{ secrets.PGHEAL_DATABASE_URL }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPO: ${{ github.repository }}
+      PGHEAL_SLACK_WEBHOOK: ${{ secrets.PGHEAL_SLACK_WEBHOOK }}
+      # flip to "1" (plus contents/pull-requests write) to let pgheal open the PR
+      PGHEAL_WRITE: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pgheal
+        run: npm install -g .
+
+      - name: Run scan (markdown + SARIF)
+        if: env.SCAN_ENABLED == 'true'
+        run: |
+          pgheal doctor || true
+          pgheal scan --json --report-file pgheal-report.md --sarif pgheal.sarif --dialect sql
+
+      - name: Upload SARIF to code scanning
+        if: env.SCAN_ENABLED == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: pgheal.sarif
+
+      - name: Upload report artifact
+        if: env.SCAN_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgheal-report
+          path: |
+            pgheal-report.md
+            pgheal.sarif
+
+      - name: Skipped (no database secret)
+        if: env.SCAN_ENABLED != 'true'
+        run: echo "::notice::PGHEAL_DATABASE_URL secret is not set — scheduled scan skipped. Add the secret (Settings → Secrets → Actions) to enable it."

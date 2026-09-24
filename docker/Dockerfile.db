@@ -1,0 +1,10 @@
+FROM postgres:18
+
+# Build HypoPG 1.4.2 from source (not bundled in the official image).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential postgresql-server-dev-18 ca-certificates git \
+ && rm -rf /var/lib/apt/lists/* \
+ && git clone --depth 1 --branch 1.4.2 https://github.com/HypoPG/hypopg.git /tmp/hypopg \
+ && make -C /tmp/hypopg \
+ && make -C /tmp/hypopg install \
+ && rm -rf /tmp/hypopg

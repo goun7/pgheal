@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+.DS_Store
+out/
+pgheal-report-*
+PROJE_KAGIDI.md
+pgheal_PROJE_KAGIDI_PRIVATE.md
+.freebuff/

@@ -1,0 +1,69 @@
+{
+  "name": "pgheal",
+  "version": "0.4.0",
+  "description": "pgHeal — PostgreSQL autonomous index & PR robot. Zero data exfiltration, HypoPG-proven, GitHub PR delivered.",
+  "keywords": [
+    "postgresql",
+    "postgres",
+    "index",
+    "index-advisor",
+    "hypopg",
+    "query-performance",
+    "database",
+    "dba",
+    "github-pr",
+    "migration",
+    "prisma",
+    "django",
+    "rails",
+    "slow-query"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "pgHeal",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goun7/pgheal.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "pgheal": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run test/github-pr.integration.test.ts test/db-e2e.integration.test.ts",
+    "test:watch": "vitest",
+    "cli": "tsx src/index.ts",
+    "prepublishOnly": "npm run typecheck && npm test -- --exclude test/db-e2e.integration.test.ts && npm run build",
+    "release": "changeset publish",
+    "version": "changeset version"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "octokit": "^4.0.2",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/node": "^22.7.4",
+    "@types/pg": "^8.11.10",
+    "testcontainers": "^12.1.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.2"
+  }
+}

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pgHeal — Autonomous PostgreSQL index tuning, delivered as a PR</title>
+<meta name="description" content="pgHeal scans pg_stat_statements, proves index wins with HypoPG hypothetical indexes, and opens a GitHub pull request with the migration. Zero data exfiltration." />
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #11161d; --panel2: #161d26; --line: #232c38;
+    --text: #dce3ec; --muted: #8b98a9; --accent: #3ecf8e; --accent2: #58a6ff;
+    --danger: #f85149; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .logo { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+  nav .links a { color: var(--muted); margin-left: 22px; font-size: 14px; }
+  nav .links a:hover { color: var(--text); }
+  .hero { padding: 64px 0 40px; text-align: center; }
+  .hero h1 { font-size: 44px; line-height: 1.15; margin: 0 0 18px; letter-spacing: -0.03em; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 19px; max-width: 720px; margin: 0 auto 28px; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .badge { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 14px; font-size: 13px; color: var(--muted); }
+  .badge b { color: var(--accent); font-weight: 600; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; text-align: left; font-family: var(--mono); font-size: 13.5px; line-height: 1.7; }
+  code { font-family: var(--mono); }
+  p > code, li > code { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 0.86em; }
+  .cmd .prompt { color: var(--muted); user-select: none; }
+  .cmd .cmt { color: #5a6b7f; }
+  .cmd .hl { color: var(--accent); }
+  section { padding: 44px 0; }
+  h2 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 30px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card .ico { font-size: 22px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--accent); font-weight: 600; }
+  .no { color: var(--danger); font-weight: 600; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } .hero h1 { font-size: 32px; } }
+  .proof { font-family: var(--mono); font-size: 12.5px; }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 28px 0 40px; color: var(--muted); font-size: 13.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .steps { counter-reset: step; }
+  .step { position: relative; padding-left: 56px; margin-bottom: 22px; }
+  .step::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 38px; height: 38px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: var(--mono); }
+  .step h3 { margin: 4px 0 4px; font-size: 16px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="logo">pg<span>Heal</span></div>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#proof">Proof</a>
+      <a href="#compare">Compare</a>
+      <a href="#start">Quick start</a>
+      <a href="https://github.com/goun7/pgheal">GitHub ↗</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>Autonomous index tuning,<br />delivered as a <em>pull request</em>.</h1>
+    <div class="badges">
+      <div class="badge"><b>HypoPG-proven</b> plans</div>
+      <div class="badge"><b>Zero</b> data exfiltration</div>
+      <div class="badge"><b>SQL · Prisma · Django · Rails</b> migrations</div>
+      <div class="badge">PostgreSQL <b>13 → 18</b></div>
+    </div>
+    <p>pgHeal scans <code>pg_stat_statements</code>, simulates hypothetical indexes with HypoPG <i>inside your database</i>, and opens a GitHub PR with the migration — only when the plan is measurably better.</p>
+    <pre class="cmd"><span class="cmt"># prove it, then let the robot open the PR</span>
+<span class="prompt">$</span> DATABASE_URL=postgres://… <span class="hl">pgheal scan</span> --write
+<span class="cmt"># ✔ 3 proven indexes (240× speedup on the worst query)</span>
+<span class="cmt"># ✔ PR opened: perf(db): add 3 proven PostgreSQL indexes (pgHeal)</span></pre>
+  </header>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="sub">Three steps, no agents on your database, nothing leaves your network.</p>
+    <div class="steps">
+      <div class="step"><h3>Observe</h3><p>Reads top statements from <code>pg_stat_statements</code> and catalog statistics through a strictly read-only connection (<code>default_transaction_read_only=on</code>, <code>lock_timeout=1s</code>).</p></div>
+      <div class="step"><h3>Prove</h3><p>Generates index candidates (B-tree, GIN, BRIN), simulates them with HypoPG hypothetical indexes in the live planner, and keeps only plans with real cost wins.</p></div>
+      <div class="step"><h3>Deliver</h3><p>Opens a shadow branch and pull request with the migration for your dialect — plus unused-index cleanup candidates after a 30-day observation window.</p></div>
+    </div>
+  </section>
+
+  <section id="proof">
+    <h2>Proof, not vibes</h2>
+    <p class="sub">Every recommendation ships with a before/after plan table measured by the real planner — not a rule of thumb.</p>
+    <div class="two-col">
+      <pre class="proof">| Metric          | Before     | After (hypoth.)  |
+|-----------------|------------|------------------|
+| Plan node       | Gather Merge | Bitmap Heap Scan |
+| Total cost      | 8465.9     | 35.2             |
+| Cost reduction  | —          | 99.6%            |
+| Speedup factor  | —          | 240.4x           |
+| Est. index size | —          | 11 KB            |</pre>
+      <div class="grid">
+        <div class="card"><div class="ico">🧪</div><h3>What-if, safely</h3><p>HypoPG indexes exist only in the simulating session. Nothing is written, ever.</p></div>
+        <div class="card"><div class="ico">🔒</div><h3>Zero exfiltration</h3><p>Only normalized query fingerprints and catalog counters — no rows, no literals, no PII.</p></div>
+        <div class="card"><div class="ico">🧹</div><h3>Index hygiene</h3><p>Finds unused and redundant indexes and their daily write overhead.</p></div>
+        <div class="card"><div class="ico">🤖</div><h3>Works in CI</h3><p><code>--sarif</code> for GitHub code scanning, <code>--json</code> for machines, Slack for humans.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>Why pgHeal</h2>
+    <p class="sub">Managed advisors closed or cost more than many databases. pgHeal is a CLI you own.</p>
+    <table>
+      <thead><tr><th>Approach</th><th>Plan proof</th><th>PR delivery</th><th>Data leaves DB?</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>pgHeal (open source)</td><td class="ok">HypoPG hypothetical plans</td><td class="ok">GitHub PR, 4 dialects</td><td class="ok">No</td><td class="ok">Free core</td></tr>
+        <tr><td>Managed tuning SaaS</td><td class="ok">Yes</td><td class="no">Dashboard only</td><td class="no">Samples uploaded</td><td class="no">$149–$399+/mo</td></tr>
+        <tr><td>Manual DBA review</td><td class="no">Ad hoc</td><td class="no">Manual</td><td class="ok">No</td><td class="no">Senior time</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="start">
+    <h2>Quick start</h2>
+    <p class="sub">Requires Node 20+, a PostgreSQL with <code>pg_stat_statements</code>, and HypoPG for proof mode.</p>
+    <pre class="cmd"><span class="cmt"># install</span>
+<span class="prompt">$</span> npm i -g pgheal
+
+<span class="cmt"># check your environment is ready</span>
+<span class="prompt">$</span> pgheal doctor
+
+<span class="cmt"># dry-run: prove wins and print the report</span>
+<span class="prompt">$</span> DATABASE_URL=postgres://app@db/prod pgheal scan
+
+<span class="cmt"># open the PR</span>
+<span class="prompt">$</span> GITHUB_TOKEN=… GITHUB_REPO=acme/api pgheal scan <span class="hl">--write</span></pre>
+  </section>
+
+  <footer>
+    <div>pgHeal — the autonomous index &amp; PR robot. MIT licensed.</div>
+    <div><a href="https://github.com/goun7/pgheal">Source</a> · <a href="https://www.npmjs.com/package/pgheal">npm</a> · <a href="#how">Docs</a></div>
+  </footer>
+</div>
+</body>
+</html>
