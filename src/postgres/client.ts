@@ -63,7 +63,7 @@ export class PgClient {
     return parseInt(rows[0]!.num.slice(0, 2), 10) + 0; // "180234" -> 18 (two-digit major works for PG10+)
   }
 
-  async extensionAvailable(ext: "hypopg" | "pg_stat_statements"): Promise<boolean> {
+  async extensionAvailable(ext: "hypopg" | "pg_stat_statements" | "vector"): Promise<boolean> {
     const rows = await this.query<{ ok: boolean }>(
       `SELECT EXISTS (
          SELECT 1 FROM pg_available_extensions WHERE name = $1

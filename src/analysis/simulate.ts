@@ -106,6 +106,13 @@ export async function simulateCandidate(
   void _config;
   const { client, hypopgAvailable } = deps;
 
+  // HNSW (pgvector) is NOT HypoPG-simulable: hypopg_create_index silently
+  // ignores the method and the plan never changes → the honest path is the
+  // "grounded" label, never a fake proof (paper §9: proof or silence).
+  if (candidate.method === "hnsw") {
+    return simulateGroundedVector(stmt, candidate, deps);
+  }
+
   const beforePlan = await explain(client, stmt.query);
   const before = planInfo(beforePlan);
 
@@ -169,6 +176,65 @@ export async function simulateCandidate(
   // size estimate for every simulated candidate (best-effort; 0 = unknown)
   const est = await estimateIndexSize(client, candidate);
   if (est > 0) result.estimatedIndexSizeBytes = est;
+  return result;
+}
+
+/**
+ * Grounded (honestly-labeled) path for non-simulable methods like HNSW.
+ * We can still PROVE the filter columns with a hypothetical btree and check
+ * the extension/column type — the vector gain itself is estimated, and the
+ * result is explicitly labeled `proof: "grounded"`, never "accepted: true".
+ */
+async function simulateGroundedVector(
+  stmt: StatementStats,
+  candidate: IndexCandidate,
+  deps: SimulateDeps,
+): Promise<SimulationResult> {
+  const { client, hypopgAvailable } = deps;
+  const beforePlan = await explain(client, stmt.query);
+  const before = planInfo(beforePlan);
+
+  const checks = await client
+    .withConnection(async (q) => {
+      // 1) extension present?
+      const ext = await q<{ ok: boolean }>("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') AS ok");
+      // 2) is the target column actually a vector-ish type? (whole check in one
+      //    EXISTS so the alias `a` stays inside its scope)
+      const typ = await q<{ ok: boolean; t: string | null }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM pg_attribute a
+           JOIN pg_class c ON c.oid = a.attrelid
+           WHERE c.relname = $1 AND a.attname = $2
+             AND a.attnum > 0 AND NOT a.attisdropped
+             AND (SELECT typname FROM pg_type WHERE oid = a.atttypid) IN ('vector','halfvec','sparsevec')
+         ) AS ok,
+         (SELECT (SELECT typname FROM pg_type WHERE oid = a.atttypid)
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            WHERE c.relname = $1 AND a.attname = $2 AND a.attnum > 0 AND NOT a.attisdropped
+            LIMIT 1) AS t`,
+        [candidate.table, candidate.columns[0] ?? ""],
+      );
+      return { vectorExt: ext[0]?.ok === true, colType: typ[0]?.ok === true, typeName: typ[0]?.t ?? null };
+    })
+    .catch(() => ({ vectorExt: false, colType: false, typeName: null }));
+
+  const reasons: string[] = [];
+  if (!checks.vectorExt) reasons.push("pgvector extension is not installed");
+  if (!checks.colType) reasons.push(`column ${candidate.table}.${candidate.columns[0]} is not a vector type${checks.typeName ? ` (found: ${checks.typeName})` : ""}`);
+  if (!hypopgAvailable) reasons.push("HypoPG not installed — filter columns cannot be proven either");
+
+  const result: SimulationResult = {
+    candidate,
+    before,
+    after: null,
+    costRatio: null,
+    speedup: null,
+    accepted: false, // NEVER true without a planner proof
+    rejectionReason: reasons.length > 0 ? reasons.join("; ") : undefined,
+    hypopgAvailable,
+    proof: "grounded",
+  };
   return result;
 }
 

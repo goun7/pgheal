@@ -1,0 +1,50 @@
+name: Weekly signal panel
+
+# Zero-maintenance growth telemetry: every Monday, collect GitHub stars /
+# forks / watchers / open issues + npm downloads (when published) and file
+# them as an issue — the founder reads one number line per week.
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC, after the license audit
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  panel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect signals
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEEK: ${{ github.run_number }}
+        run: |
+          REPO="${{ github.repository }}"
+          STARS=$(gh api repos/$REPO --jq '.stargazers_count')
+          FORKS=$(gh api repos/$REPO --jq '.forks_count')
+          WATCH=$(gh api repos/$REPO --jq '.subscribers_count')
+          OPENISS=$(gh api "repos/$REPO/issues?state=open&per_page=100" --jq 'length')
+          # npm downloads: 0 until published — the query just stays quiet
+          DL=$(curl -fsSL "https://api.npmjs.org/downloads/point/last-week/pgheal" 2>/dev/null | jq -r '.downloads // 0' || echo 0)
+          RELEASES=$(gh api repos/$REPO/releases --jq 'length')
+          BODY="Weekly panel — repo: $REPO
+          | Signal | Value |
+          |---|---|
+          | ⭐ Stars | $STARS |
+          | 🍴 Forks | $FORKS |
+          | 👁 Watchers | $WATCH |
+          | 🐛 Open issues/PRs | $OPENISS |
+          | ⬇️ npm downloads (last week) | $DL |
+          | 🏷 Releases | $RELEASES |
+
+          Benchmarks (LAUNCH_KIT §E): week-1 target ≥50 stars, ≥200 downloads."
+          echo "$BODY" > body.md
+          gh issue create --title "📈 Signal panel — week $WEEK" --body-file body.md --label "vendor-task"
+
+      - name: Skip silently when nothing changed
+        if: failure()
+        run: echo "::notice::signal collection failed — non-fatal, next Monday retries"

@@ -90,6 +90,16 @@ export function extractShape(sql: string): QueryShape {
     if (jm[1] && !ctes.has(stripAlias(jm[1]).toLowerCase())) shape.tables.push(stripAlias(jm[1]));
   }
 
+  // ORDER BY must be parsed BEFORE the vector scan below: distance operators
+  // usually appear in ORDER BY (`ORDER BY embedding <=> $1`)
+  const orderMatch = /\bORDER\s+BY\s+([\s\S]*?)(?=\bLIMIT\b|\bFOR\s+UPDATE\b|$)/i.exec(norm);
+  if (orderMatch?.[1]) {
+    shape.orderBy = orderMatch[1]
+      .split(",")
+      .map((c) => columnName(stripWhitespace(c)))
+      .filter(Boolean);
+  }
+
   // predicates: every WHERE region (outer query, subqueries, CTE bodies)
   const whereFragments: string[] = [];
   for (const whereRegion of keywordRegions(norm, /\bWHERE\b/)) {
@@ -104,13 +114,13 @@ export function extractShape(sql: string): QueryShape {
   for (const c of containmentColumns(whereFragments.join(" "))) {
     shape.predicates.push({ column: c, kind: "containment" });
   }
-
-  const orderMatch = /\bORDER\s+BY\s+([\s\S]*?)(?=\bLIMIT\b|\bFOR\s+UPDATE\b|$)/i.exec(norm);
-  if (orderMatch?.[1]) {
-    shape.orderBy = orderMatch[1]
-      .split(",")
-      .map((c) => columnName(stripWhitespace(c)))
-      .filter(Boolean);
+  // pgvector distance operators (<-> L2, <=> cosine, <#> inner product)
+  for (const c of vectorDistanceColumns(whereFragments.join(" ") + " " + shape.orderBy.join(" "))) {
+    shape.predicates.push({ column: c, kind: "vector-distance" });
+  }
+  // functional predicates worth EXPRESSION indexes (HypoPG-simulable btree)
+  for (const e of expressionPredicateColumns(whereFragments.join(" "))) {
+    shape.predicates.push(e);
   }
 
   const groupMatch = /\bGROUP\s+BY\s+([\s\S]*?)(?=\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|$)/i.exec(norm);
@@ -169,6 +179,43 @@ export function containmentColumns(whereClause: string): string[] {
     if (m[1]) out.push(m[1].includes(".") ? m[1].split(".").pop()! : m[1]);
   }
   return [...new Set(out)];
+}
+
+/** Columns used with pgvector distance operators → HNSW candidates (method chosen with opclass). */
+export function vectorDistanceColumns(text: string): string[] {
+  const out: string[] = [];
+  const re = /([A-Za-z_][\w.]*)\s*(?:<->|<=>|<#>)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m[1]) out.push(m[1].includes(".") ? m[1].split(".").pop()! : m[1]);
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * Functional predicates worth EXPRESSION indexes: `LOWER(col) = ?`,
+ * `DATE(col) = ?`, `col::date = ?`. HypoPG simulates expression btrees, so
+ * these get full planner proof (v0.5's safe half).
+ */
+export function expressionPredicateColumns(text: string): Predicate[] {
+  const out: Predicate[] = [];
+  const re = /\b(LOWER|UPPER|DATE)\s*\(\s*([A-Za-z_][\w.]*)\s*\)|([A-Za-z_][\w.]*)::(date|text)\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    let expr: string | undefined;
+    let col: string | undefined;
+    if (m[1]) {
+      // LOWER/UPPER/DATE(func) — keep the writer's case for the DDL expression
+      const fn = m[1] === "DATE" ? "DATE" : m[1].toUpperCase();
+      expr = `${fn}("${m[2]!.split(".").pop()!}")`;
+      col = m[2]!.split(".").pop()!;
+    } else if (m[3]) {
+      expr = `("${m[3]!.split(".").pop()!}")::${m[4]!}`;
+      col = m[3]!.split(".").pop()!;
+    }
+    if (col && expr) out.push({ column: col, kind: "equality", expression: expr });
+  }
+  return out;
 }
 
 /** Timestamp-ish range columns — brin evaluation marker (huge append-only tables). */
@@ -256,6 +303,8 @@ export function makeCandidates(stmt: StatementStats): IndexCandidate[] {
     const eq = shape.predicates.filter((p) => p.kind === "equality");
     const rng = shape.predicates.filter((p) => p.kind === "range");
     const ginCols = shape.predicates.filter((p) => p.kind === "containment").map((p) => p.column);
+    const vecCols = shape.predicates.filter((p) => p.kind === "vector-distance").map((p) => p.column);
+    const exprPreds = shape.predicates.filter((p) => p.expression);
 
     // Which predicates belong to this table? v0.1 heuristic: unqualified columns
     // are attributed to the first table; qualified ones to their own table.
@@ -275,6 +324,39 @@ export function makeCandidates(stmt: StatementStats): IndexCandidate[] {
         isUnique: false,
         fromQueryid: stmt.queryid,
         reason: `jsonb/array containment on ${col} — top statement ${fp} (${stmt.calls} calls)`,
+      });
+    }
+
+    // HNSW candidates: pgvector distance ordering/filtering (v0.5). HypoPG can
+    // NOT simulate hnsw — simulate.ts routes these to the grounded path.
+    // opclass must match the query's distance operator:
+    //   <-> → vector_l2_ops · <=> → vector_cosine_ops · <#> → vector_ip_ops
+    const vecOp = /<=>|<->|<#>/.exec(stmt.query)?.[0];
+    const vecOpclass = vecOp === "<->" ? "vector_l2_ops" : vecOp === "<#>" ? "vector_ip_ops" : "vector_cosine_ops";
+    for (const col of vecCols) {
+      out.push({
+        table,
+        columns: [col],
+        method: "hnsw",
+        opclass: vecOpclass,
+        isUnique: false,
+        fromQueryid: stmt.queryid,
+        reason: `pgvector distance ordering on ${col} (${vecOp ?? "<=>"}) — top statement ${fp} (${stmt.calls} calls)`,
+      });
+    }
+
+    // EXPRESSION candidates: LOWER/UPPER/DATE/::cast predicates get a
+    // functional btree — HypoPG CAN simulate these (full planner proof).
+    for (const p of exprPreds) {
+      if (!p.expression || p.column.includes(".")) continue;
+      out.push({
+        table,
+        columns: [p.column],
+        method: "btree",
+        expression: p.expression,
+        isUnique: false,
+        fromQueryid: stmt.queryid,
+        reason: `functional predicate on ${p.expression} — HypoPG-simulable expression btree`,
       });
     }
 

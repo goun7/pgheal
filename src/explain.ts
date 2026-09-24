@@ -43,12 +43,16 @@ export async function explainQuery(config: Config, sql: string, options: Explain
 
     for (const cand of candidates) {
       const sim = await simulateCandidate(stmt, cand, { client, hypopgAvailable: hypopg }, config);
-      lines.push(`### Candidate: ${cand.table} (${cand.columns.join(", ")})`);
+      lines.push(`### Candidate: ${cand.table} (${cand.columns.join(", ")})${cand.method !== "btree" ? ` · ${cand.method}` : ""}`);
       lines.push("");
       lines.push(proofTable(sim));
       lines.push("");
       if (sim.accepted) lines.push("✅ Planner would use this index — proven improvement.");
-      else lines.push(`❌ Not proven: ${sim.rejectionReason ?? "unknown"}`);
+      else if (sim.proof === "grounded") {
+        lines.push("🟡 GROUNDED (not planner-proven): HypoPG cannot simulate this index method.");
+        lines.push(`   ${sim.rejectionReason ?? "Vector gain is estimated from filter selectivity; the DDL below is ready to apply."}`);
+        lines.push("   After applying it, re-run `pgheal explain` to measure the real plan.");
+      } else lines.push(`❌ Not proven: ${sim.rejectionReason ?? "unknown"}`);
       lines.push("");
     }
     return lines.join("\n");

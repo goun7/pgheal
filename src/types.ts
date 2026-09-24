@@ -48,20 +48,25 @@ export interface QueryCandidate {
   reason: string;
 }
 
-export type PredicateKind = "equality" | "range" | "join" | "order" | "group" | "containment";
+export type PredicateKind = "equality" | "range" | "join" | "order" | "group" | "containment" | "vector-distance";
 
 export interface Predicate {
   column: string;
   kind: PredicateKind;
+  /** for functional predicates: the index expression, e.g. LOWER("email") (v0.5) */
+  expression?: string | undefined;
 }
 
 export interface IndexCandidate {
   table: string;
   columns: string[];
-  /** btree (default) · gin (arrays/JSONB/trgm) · brin (huge append-only ranges) */
-  method: "btree" | "gin" | "brin";
+  /** btree (default) · gin (arrays/JSONB/trgm) · brin (append-only ranges) ·
+   *  hnsw (pgvector distance) — hnsw is NOT HypoPG-simulable (see simulate.ts) */
+  method: "btree" | "gin" | "brin" | "hnsw";
   /** operator class, e.g. text_pattern_ops for left-anchored LIKE on non-C collations */
   opclass?: string | undefined;
+  /** expression variant, e.g. 'LOWER("email")' — btree on an expression (HypoPG CAN simulate these) */
+  expression?: string | undefined;
   isUnique: boolean;
   fromQueryid: string;
   reason: string;
@@ -91,6 +96,10 @@ export interface SimulationResult {
   rejectionReason?: string | undefined;
   /** HypoPG available? If false, simulation is "unproven" mode. */
   hypopgAvailable: boolean;
+  /** "hypopg" = planner-proven (default, implied) · "grounded" = honestly
+   *  labeled non-simulable recommendation (e.g. HNSW): filter columns proven,
+   *  vector gain estimated — never presented as proven (paper §9). */
+  proof?: "hypopg" | "grounded" | undefined;
   estimatedIndexSizeBytes?: number | undefined;
 }
 

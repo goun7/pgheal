@@ -37,9 +37,17 @@ export function renderReport(scan: ScanResult): string {
     lines.push("");
     scan.recommendations.forEach((rec, i) => {
       const sim = rec.simulation;
-      lines.push(`### ${i + 1}. \`${sim.candidate.table}\` → (${sim.candidate.columns.join(", ")})`);
+      const grounded = sim.proof === "grounded";
+      lines.push(
+        `### ${i + 1}. \`${sim.candidate.table}\` → (${sim.candidate.columns.join(", ")})${sim.candidate.method !== "btree" ? ` · ${sim.candidate.method}` : ""}${grounded ? " · 🟡 grounded" : ""}`,
+      );
       lines.push("");
       lines.push(`- **Reason:** ${sim.candidate.reason}`);
+      if (grounded) {
+        lines.push(
+          "- **Honesty note:** HypoPG cannot simulate this index method — the filter/gain numbers below come from the baseline plan and catalog statistics only, NOT from a hypothetical-index proof. Applying the DDL and re-running `pgheal scan` produces the real before/after.",
+        );
+      }
       lines.push(`- **Query (normalized, truncated):**`);
       lines.push("```sql");
       lines.push(rec.simulation.candidate.fromQueryid ? truncate(candidateQuery(scan, rec), 400) : "");
@@ -106,6 +114,8 @@ export function reportToJson(scan: ScanResult): string {
       recommendations: scan.recommendations.map((r) => ({
         table: r.simulation.candidate.table,
         columns: r.simulation.candidate.columns,
+        method: r.simulation.candidate.method,
+        proof: r.simulation.proof ?? "hypopg",
         accepted: r.simulation.accepted,
         speedup: r.simulation.speedup,
         costRatio: r.simulation.costRatio,

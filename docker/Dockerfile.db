@@ -1,10 +1,18 @@
 FROM postgres:18
 
-# Build HypoPG 1.4.2 from source (not bundled in the official image).
+ARG PGVECTOR_VERSION=0.8.6
+ARG HYPOPG_VERSION=1.4.2
+
+# Build HypoPG (not bundled in the official image) and pgvector (v0.5 vector
+# candidates E2E) from source.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential postgresql-server-dev-18 ca-certificates git \
  && rm -rf /var/lib/apt/lists/* \
- && git clone --depth 1 --branch 1.4.2 https://github.com/HypoPG/hypopg.git /tmp/hypopg \
+ && git clone --depth 1 --branch ${HYPOPG_VERSION} https://github.com/HypoPG/hypopg.git /tmp/hypopg \
  && make -C /tmp/hypopg \
  && make -C /tmp/hypopg install \
- && rm -rf /tmp/hypopg
+ && rm -rf /tmp/hypopg \
+ && git clone --depth 1 --branch v${PGVECTOR_VERSION} https://github.com/pgvector/pgvector.git /tmp/pgvector \
+ && make -C /tmp/pgvector OPTFLAGS="" \
+ && make -C /tmp/pgvector install \
+ && rm -rf /tmp/pgvector

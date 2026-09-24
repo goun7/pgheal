@@ -142,4 +142,83 @@ d("pgHeal E2E on real Postgres 18 + HypoPG (testcontainers)", () => {
     },
     LONG,
   );
+
+  it(
+    "pgvector: HNSW candidate is grounded (never fake-proven), expression btree IS HypoPG-proven",
+    async () => {
+      const { PgClient } = await import("../src/postgres/client.js");
+      const { simulateCandidate } = await import("../src/analysis/simulate.js");
+      const config = loadConfig({ DATABASE_URL: dsn });
+      const client = new PgClient(config);
+      await client.connect();
+      try {
+        const q = async (t: string) => (await client.query(t)) as unknown as void;
+        void q;
+        const pool = new pg.Pool({ connectionString: dsn, max: 1 });
+        const c = await pool.connect();
+        try {
+          await c.query("CREATE EXTENSION IF NOT EXISTS vector");
+          await c.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS embedding vector(64)");
+          await c.query("UPDATE orders SET embedding = (SELECT ('[' || string_agg(x::text, ',') || ']')::vector FROM (SELECT ((g * 37) % 100) / 100.0 AS x FROM generate_series(1, 64) g) s)");
+          await c.query("ANALYZE orders");
+        } finally {
+          c.release();
+          await pool.end();
+        }
+
+        // 1) cosine-distance query → hnsw candidate with matching opclass
+        const vecStmt: StatementStats = {
+          queryid: "e2e-vec",
+          query: "SELECT id FROM orders ORDER BY embedding <=> $1 LIMIT 5",
+          calls: 300,
+          totalExecTime: 60_000,
+          meanExecTime: 200,
+          rows: 5,
+          hitRatio: 99,
+        };
+        const { makeCandidates } = await import("../src/analysis/candidates.js");
+        const hnsw = makeCandidates(vecStmt).find((x) => x.method === "hnsw");
+        expect(hnsw).toBeDefined();
+        expect(hnsw!.opclass).toBe("vector_cosine_ops");
+
+        const grounded = await simulateCandidate(vecStmt, hnsw!, { client, hypopgAvailable: true }, config);
+        expect(grounded.proof).toBe("grounded");
+        expect(grounded.accepted).toBe(false); // never fake-proven
+        expect(grounded.rejectionReason).toBeUndefined(); // ext + column type are fine
+
+        // the DDL is actually valid against the live server (syntax + opclass).
+        // PgClient is read-only BY DESIGN, so the write check uses its own pool.
+        const { indexDdl } = await import("../src/analysis/ddl.js");
+        const ddlPool = new pg.Pool({ connectionString: dsn, max: 1 });
+        const dc = await ddlPool.connect();
+        try {
+          await dc.query(indexDdl(hnsw!, { concurrently: false }).replace("IF NOT EXISTS ", ""));
+          await dc.query("DROP INDEX idx_orders_embedding_hnsw");
+        } finally {
+          dc.release();
+          await ddlPool.end();
+        }
+
+        // 2) expression btree IS HypoPG-simulable → full proof on real planner
+        const exprStmt: StatementStats = {
+          queryid: "e2e-expr",
+          query: "SELECT id FROM orders WHERE LOWER(status) = 'paid'",
+          calls: 500,
+          totalExecTime: 80_000,
+          meanExecTime: 160,
+          rows: 66_000,
+          hitRatio: 99,
+        };
+        const exprCand = makeCandidates(exprStmt).find((x) => x.expression);
+        expect(exprCand).toBeDefined();
+        const exprSim = await simulateCandidate(exprStmt, exprCand!, { client, hypopgAvailable: true }, config);
+        expect(exprSim.proof).toBeUndefined(); // default = hypopg
+        // (planner may or may not pick it for a 3-value column; either way the
+        //  simulation must run without error and label as hypopg proof)
+      } finally {
+        await client.close();
+      }
+    },
+    LONG,
+  );
 });
