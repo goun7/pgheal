@@ -1,10 +1,11 @@
-# Financial support
+# Financial support / commercial licensing
 
-pgHeal is free, open-source software (MIT). If it saves your team DBA hours,
-you can support development:
+pgHeal is free, open-source software (MIT). Ways to support it or buy the
+Team license (multi-repo workspace, priority support — license key delivered
+automatically):
 
+- **Polar (preferred, works for Turkey-based maintainers):** https://polar.sh/goun7
 - **GitHub Sponsors:** https://github.com/sponsors/goun7
 
-Commercial licensing (Team plan: multi-repo `workspace`, priority support) is
-sold as offline-verifiable HMAC license keys — see the `workspace` command in
-the README. Sponsors at the Team tier get the license included.
+Team tier sponsors/licensees get the multi-repo `workspace` feature and the
+priority-support SLA. See README §Pricing for plans.

@@ -274,14 +274,21 @@ npm run build       # dist/
 | **Team — 5 databases** | $49/mo | everything in Free + multi-repo `workspace` + priority support |
 | **Team XL — 20 databases** | $149/mo | Team + scheduled autonomous PRs (`autonomous-pr`) |
 | **Team XL+ — 100 databases** | $399/mo | Team XL + roadmap input + SLA credits |
-| **Sponsors tier** | from $5/mo | Team license included at the Team tier — [sponsor here](https://github.com/sponsors/goun7) |
+| **Sponsors tier** | from $5/mo | Team license included at the Team tier — [Polar](https://polar.sh/goun7) · [GitHub Sponsors](https://github.com/sponsors/goun7) |
 
-**How to buy (fully self-serve, no meetings):** sponsor at the Team tier or
-send $49/$149/$399 via a payment link you get by opening a
+**How to buy (fully self-serve, no meetings):** sponsor at the Team tier
+([Polar](https://polar.sh/goun7) or [GitHub Sponsors](https://github.com/sponsors/goun7))
+or send $49/$149/$399 via a payment link you get by opening a
 [Team license request](https://github.com/goun7/pgheal/issues/new?template=team-license.yml)
 → the `paid` label triggers automatic key delivery →
 `pgheal license activate --key pgheal_…`. Keys are HMAC-signed and verified
 offline; the signing secret never leaves the vendor.
+
+One-liner install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/goun7/pgheal/master/install.sh | sh
+```
 
 Managed tuning SaaS products charge $149–$399+/month and upload your query
 samples. pgHeal's proof runs **inside your database** — nothing leaves it.
