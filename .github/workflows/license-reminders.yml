@@ -36,16 +36,19 @@ jobs:
           OUT=$(node dist/index.js license audit --key pgheal-licenses.ndjson)
           echo "$OUT"
           if echo "$OUT" | grep -qE "❌|⏳"; then
+            {
+              echo "Weekly audit output:"
+              echo ""
+              echo '```'
+              echo "$OUT"
+              echo '```'
+              echo ""
+              echo "Action: contact the customer for renewal (they can also self-serve: new"
+              echo "payment + \`paid\` label on their issue → fresh key is issued automatically)."
+            } > body.md
             gh issue create \
               --title "License hygiene: expiring/expired keys need attention" \
-              --body "Weekly audit output:
-
-\`\`\`
-$OUT
-\`\`\`
-
-Action: contact the customer for renewal (they can also self-serve: new
-payment + \`paid\` label on their issue → fresh key is issued automatically)." \
+              --body-file body.md \
               --label "vendor-task" || \
             gh issue create --title "License hygiene: expiring/expired keys" --body "$OUT"
           else

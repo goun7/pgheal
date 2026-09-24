@@ -43,16 +43,19 @@ jobs:
           # the key must NOT be posted in a public issue comment — it goes to an
           # unlisted gist whose URL contains an unguessable hash (capability URL)
           GIST_URL=$(gh gist create -d "pgHeal license key for $SUB" -f "license-key.txt" <<< "$KEY")
-          gh issue comment "$ISSUE_NUMBER" --body "🔑 Your pgHeal Team license is ready (\`$SUB\`, $DAYS days, $SEATS databases).
-
-**[Open your private key page →]($GIST_URL)**
-
-The page is unlisted and its URL is unguessable — treat it like a password.
-Activate:
-\`\`\`
-pgheal license activate --key pgheal_…
-\`\`\`
-Then run multi-repo scans: \`pgheal workspace workspace.json\`.
-
-Renewal: add the \`paid\` label to a short renewal note and a fresh key is issued."
+          {
+            echo "🔑 Your pgHeal Team license is ready (\`$SUB\`, $DAYS days, $SEATS databases)."
+            echo ""
+            echo "**[Open your private key page →]($GIST_URL)**"
+            echo ""
+            echo "The page is unlisted and its URL is unguessable — treat it like a password."
+            echo "Activate:"
+            echo '```'
+            echo "pgheal license activate --key pgheal_…"
+            echo '```'
+            echo "Then run multi-repo scans: \`pgheal workspace workspace.json\`."
+            echo ""
+            echo "Renewal: add the \`paid\` label to a short renewal note and a fresh key is issued."
+          } > body.md
+          gh issue comment "$ISSUE_NUMBER" --body-file body.md
           gh issue edit "$ISSUE_NUMBER" --remove-label team-license --add-label fulfilled
