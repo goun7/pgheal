@@ -4,7 +4,9 @@
 [![CI](https://github.com/goun7/pgheal/actions/workflows/ci.yml/badge.svg)](https://github.com/goun7/pgheal/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/goun7/pgheal?label=version)](https://github.com/goun7/pgheal/releases)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![node](https://img.shields.io/badge/node-20%2B-blue) — PostgreSQL Autonomous Index & PR Robot
+![node](https://img.shields.io/badge/node-20%2B-blue)
+[![sponsor](https://img.shields.io/badge/%E2%9D%A4-sponsor-eb4b4b)](https://github.com/sponsors/goun7)
+[![polar](https://img.shields.io/badge/buy%20team-polar.sh-25c2a1)](https://polar.sh/goun7) — PostgreSQL Autonomous Index & PR Robot
 
 > **HypoPG-proven. Zero data exfiltration. Delivered as a GitHub PR.**
 
