@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { createRequire } from "node:module";
+
+/** Package version — single source of truth (CLI --version, SARIF driver). */
+export const PKG_VERSION: string = (
+  createRequire(import.meta.url)("../package.json") as { version: string }
+).version;
 
 /** pgHeal configuration — validated with zod, DSN never logged. */
 export const ConfigSchema = z.object({

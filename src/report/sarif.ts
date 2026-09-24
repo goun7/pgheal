@@ -1,5 +1,6 @@
 import type { ScanResult } from "../types.js";
 import { humanBytes } from "./render.js";
+import { PKG_VERSION } from "../config.js";
 
 /**
  * SARIF 2.1.0 output — upload to GitHub code scanning and index opportunities
@@ -19,7 +20,7 @@ export function renderSarif(scan: ScanResult): string {
           driver: {
             name: "pgHeal",
             informationUri: "https://github.com/goun7/pgheal",
-            version: "0.1.0",
+            version: PKG_VERSION,
             rules: [
               ...scan.recommendations.map((r, i) => ({
                 id: `pgheal/index/${i + 1}`,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadConfig, maskDsn } from "./config.js";
+import { loadConfig, maskDsn, PKG_VERSION } from "./config.js";
 import { runScan, reportToJson } from "./scan.js";
 import { runDoctor } from "./doctor.js";
 import { explainQuery } from "./explain.js";
@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("pgheal")
   .description("pgHeal — PostgreSQL autonomous index & PR robot (HypoPG-proven, zero data exfiltration)")
-  .version("0.1.0");
+  .version(PKG_VERSION);
 
 program
   .command("scan")

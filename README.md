@@ -1,6 +1,10 @@
 # pgHeal
 
-![demo](docs/demo-card.svg) — PostgreSQL Autonomous Index & PR Robot
+![demo](docs/demo-card.svg)
+[![CI](https://github.com/goun7/pgheal/actions/workflows/ci.yml/badge.svg)](https://github.com/goun7/pgheal/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/goun7/pgheal?label=version)](https://github.com/goun7/pgheal/releases)
+![license](https://img.shields.io/badge/license-MIT-green)
+![node](https://img.shields.io/badge/node-20%2B-blue) — PostgreSQL Autonomous Index & PR Robot
 
 > **HypoPG-proven. Zero data exfiltration. Delivered as a GitHub PR.**
 
@@ -38,17 +42,23 @@ The demo DB (Postgres 18 + HypoPG + pg_stat_statements, 500k orders, no index on
 
 ## Local CLI
 
-**Install from the npm registry** (when published) or **without an npm
-account** — the same tarball ships on GitHub Releases:
+**Registry-free install** (no npmjs.com account needed) — the tarball ships on
+GitHub Releases with every push:
 
 ```bash
-# registry install (npm account required only on the maintainer side)
-npm i -g pgheal
-
-# registry-free install: pull the release tarball from GitHub Releases
-curl -LO https://github.com/goun7/pgheal/releases/latest/download/pgheal-<version>.tgz
-tar -xzf pgheal-<version>.tgz && npm i -g ./package
+curl -LO https://github.com/goun7/pgheal/releases/latest/download/pgheal-0.4.0.tgz
+tar -xzf pgheal-0.4.0.tgz && npm i -g ./package
+pgheal doctor
 ```
+
+Or install straight from GitHub:
+
+```bash
+npm i -g github:goun7/pgheal
+```
+
+npm registry (`npm i -g pgheal`) will follow once the package is published
+there — the release pipeline is already OIDC-ready.
 
 Or build from source:
 
