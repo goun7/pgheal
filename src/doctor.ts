@@ -87,6 +87,30 @@ export async function runDoctor(config: Config): Promise<{ checks: DoctorCheck[]
     checks.push({ name: "stats privileges", ok: false, detail: "privilege check failed" });
   }
 
+  // GitHub delivery mode — INFORMATIONAL: scans work without it (scan-only mode)
+  const appMode = !!(process.env.PGHEAL_GITHUB_APP_ID && process.env.PGHEAL_GITHUB_APP_INSTALLATION_ID && process.env.PGHEAL_GITHUB_APP_KEY_PATH);
+  const patMode = !!(config.githubToken && config.githubRepo);
+  if (appMode) {
+    checks.push({
+      name: "GitHub delivery",
+      ok: true,
+      detail: `GitHub App mode (installation ${process.env.PGHEAL_GITHUB_APP_INSTALLATION_ID}) — no long-lived PAT`,
+    });
+  } else if (patMode) {
+    checks.push({
+      name: "GitHub delivery",
+      ok: true,
+      detail: `PAT mode (${config.githubRepo})`,
+    });
+  } else {
+    checks.push({
+      name: "GitHub delivery",
+      ok: true,
+      detail: "not configured — scan-only mode (PR delivery off)",
+      fix: "Set GITHUB_TOKEN + GITHUB_REPO for PAT mode, or PGHEAL_GITHUB_APP_ID/INSTALLATION_ID/KEY_PATH for GitHub App mode",
+    });
+  }
+
   await client.close();
   return { checks, ready: checks.every((c) => c.ok) };
 }

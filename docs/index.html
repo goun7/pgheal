@@ -101,6 +101,8 @@
       <div class="badge"><b>Zero</b> data exfiltration</div>
       <div class="badge"><b>SQL · Prisma · Django · Rails</b> migrations</div>
       <div class="badge">PostgreSQL <b>13 → 18</b></div>
+      <div class="badge"><b>pgvector</b> HNSW · honest proof</div>
+      <div class="badge"><b>Tokenless</b> GitHub App mode</div>
     </div>
     <p>pgHeal scans <code>pg_stat_statements</code>, simulates hypothetical indexes with HypoPG <i>inside your database</i>, and opens a GitHub PR with the migration — only when the plan is measurably better.</p>
     <pre class="cmd"><span class="cmt"># prove it, then let the robot open the PR</span>
@@ -114,7 +116,7 @@
     <p class="sub">Three steps, no agents on your database, nothing leaves your network.</p>
     <div class="steps">
       <div class="step"><h3>Observe</h3><p>Reads top statements from <code>pg_stat_statements</code> and catalog statistics through a strictly read-only connection (<code>default_transaction_read_only=on</code>, <code>lock_timeout=1s</code>).</p></div>
-      <div class="step"><h3>Prove</h3><p>Generates index candidates (B-tree, GIN, BRIN), simulates them with HypoPG hypothetical indexes in the live planner, and keeps only plans with real cost wins.</p></div>
+      <div class="step"><h3>Prove</h3><p>Generates index candidates (B-tree, GIN, BRIN, expression), simulates them with HypoPG hypothetical indexes in the live planner, and keeps only plans with real cost wins. Vector candidates (HNSW, IVFFlat) are labeled 🟡 <b>grounded</b> — never fake-proven.</p></div>
       <div class="step"><h3>Deliver</h3><p>Opens a shadow branch and pull request with the migration for your dialect — plus unused-index cleanup candidates after a 30-day observation window.</p></div>
     </div>
   </section>
@@ -134,6 +136,7 @@
         <div class="card"><div class="ico">🧪</div><h3>What-if, safely</h3><p>HypoPG indexes exist only in the simulating session. Nothing is written, ever.</p></div>
         <div class="card"><div class="ico">🔒</div><h3>Zero exfiltration</h3><p>Only normalized query fingerprints and catalog counters — no rows, no literals, no PII.</p></div>
         <div class="card"><div class="ico">🧹</div><h3>Index hygiene</h3><p>Finds unused and redundant indexes and their daily write overhead.</p></div>
+        <div class="card"><div class="ico">🧭</div><h3>Vector, honestly</h3><p>HNSW/IVFFlat candidates for pgvector workloads — 🟡 grounded until proven on <i>your</i> data, with a ready <code>CONCURRENTLY</code> DDL.</p></div>
         <div class="card"><div class="ico">🤖</div><h3>Works in CI</h3><p><code>--sarif</code> for GitHub code scanning, <code>--json</code> for machines, Slack for humans.</p></div>
       </div>
     </div>
@@ -155,9 +158,8 @@
   <section id="start">
     <h2>Quick start</h2>
     <p class="sub">Requires Node 20+, a PostgreSQL with <code>pg_stat_statements</code>, and HypoPG for proof mode.</p>
-    <pre class="cmd"><span class="cmt"># install — from npm, or registry-free from GitHub Releases</span>
-<span class="prompt">$</span> curl -LO github.com/goun7/pgheal/releases/latest/download/pgheal-0.4.0.tgz <span class="cmt"># registry-free</span>
-<span class="prompt">$</span> tar -xzf pgheal-0.4.0.tgz &amp;&amp; npm i -g ./package
+    <pre class="cmd"><span class="cmt"># install — one line, no npm account needed</span>
+<span class="prompt">$</span> curl -fsSL https://raw.githubusercontent.com/goun7/pgheal/master/install.sh <span class="hl">| sh</span>
 <span class="prompt">$</span> npm i -g github:goun7/pgheal        <span class="cmt"># alternative: straight from GitHub</span>
 
 <span class="cmt"># check your environment is ready</span>
@@ -166,8 +168,9 @@
 <span class="cmt"># dry-run: prove wins and print the report</span>
 <span class="prompt">$</span> DATABASE_URL=postgres://app@db/prod pgheal scan
 
-<span class="cmt"># open the PR</span>
-<span class="prompt">$</span> GITHUB_TOKEN=… GITHUB_REPO=acme/api pgheal scan <span class="hl">--write</span></pre>
+<span class="cmt"># open the PR — a fine-grained PAT, or tokenless via GitHub App (v0.6+)</span>
+<span class="prompt">$</span> GITHUB_TOKEN=… GITHUB_REPO=acme/api pgheal scan <span class="hl">--write</span>
+<span class="cmt"># app mode: set PGHEAL_GITHUB_APP_ID / _INSTALLATION_ID / _KEY_PATH instead</span></pre>
   </section>
 
   <section id="demo">
