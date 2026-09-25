@@ -32,9 +32,29 @@ let dsn = "";
 const WORKLOAD_QUERY =
   "SELECT * FROM orders WHERE user_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT $3";
 
+/**
+ * Postgres briefly rejects connections with 57P03 ("database system is
+ * starting up") right after the port opens, especially under CI load —
+ * retry those (and ECONNREFUSED) with a 1s backoff instead of flaking.
+ */
+async function connectWithRetry(pool: pg.Pool, attempts = 30, delayMs = 1000): Promise<pg.PoolClient> {
+  let lastError: unknown = undefined;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await pool.connect();
+    } catch (err) {
+      lastError = err;
+      const code = (err as { code?: string } | null)?.code;
+      if (code !== "57P03" && code !== "ECONNREFUSED") throw err;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 async function seedWorkload(dsn: string): Promise<void> {
   const pool = new pg.Pool({ connectionString: dsn, max: 1 });
-  const c = await pool.connect();
+  const c = await connectWithRetry(pool);
   try {
     await c.query("CREATE EXTENSION IF NOT EXISTS hypopg");
     await c.query("CREATE EXTENSION IF NOT EXISTS pg_stat_statements");
