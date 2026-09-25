@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Ensure vendor-task label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh label create "vendor-task" --color "5319e7" --description "Maintainer task from automation" 2>/dev/null || true
+
       - name: Collect signals
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
