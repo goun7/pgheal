@@ -30,7 +30,15 @@ jobs:
           node-version: 22
 
       - name: Install pgheal
-        run: npm install -g .
+        # `npm install -g .` runs the `prepare` script (`npm run build` -> tsc),
+        # but a global install only provisions production deps — `typescript` and
+        # `@types/node` are devDependencies, so tsc failed with TS2688
+        # "Cannot find type definition file for 'node'". Install the full tree,
+        # build explicitly, then link the built output without re-running scripts.
+        run: |
+          npm ci
+          npm run build
+          npm install -g . --ignore-scripts
 
       - name: Run scan (markdown + SARIF)
         if: env.SCAN_ENABLED == 'true'
