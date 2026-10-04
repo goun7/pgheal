@@ -60,6 +60,13 @@ cost numbers. Same customer, same sales motion ("DB + contract security"),
 different oracle. The pairing and its pricing logic live in the mesh map
 under `00_TAMGA-MESH/orkestrasyon/PORTFOY_SINERJI_HARITASI_2026-09-24.md`.
 
+**The regression twin:** optimizing a query is only half the job — the other
+half is not breaking it. PlanLock (18-PlanLock) is pgHeal's mirror image:
+where this tool proves a candidate index makes the plan cheaper, PlanLock
+runs the *before/after* plans in a PR gate and locks the merge when a
+regression appears. "Optimize but don't break" — the two halves of the
+PostgreSQL safety package in one portfolio.
+
 
 ## Quick start (demo in 60 seconds)
 
