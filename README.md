@@ -22,6 +22,25 @@ Request from a shadow branch. Your database never leaves your VPC.
 - The category leader OtterTune died in June 2024 — because closed-box ML + external access is the wrong model.
 - pgHeal is open-source, deterministic (the planner itself votes), and ships proof.
 
+<details>
+<summary><b>Academic grounding</b> (why the closed-box model fails)</summary>
+
+OtterTune descends from Van Aken, Pavlo, Gordon & Zhang, *"Automatic Database
+Management System Tuning Through Large-scale Machine Learning"*
+([SIGMOD 2017, DOI 10.1145/3035918.3064029](https://dl.acm.org/doi/10.1145/3035918.3064029)),
+which trains ML models on previously-collected tuning sessions to recommend
+knob configurations. That is a *probabilistic* model of the planner's
+behaviour, learned from external data.
+
+pgHeal takes the opposite side of that bet: instead of modelling the planner,
+it asks the planner directly through HypoPG hypothetical indexes, so the
+answer is what the planner would actually do — not a guess about it.
+Deterministic advice, no training corpus to keep current, and no data
+leaving the instance.
+
+</details>
+
+
 ## Quick start (demo in 60 seconds)
 
 ```bash
