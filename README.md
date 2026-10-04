@@ -52,6 +52,14 @@ reward-estimated.
 
 </details>
 
+**The contract twin:** the same "prove it, don't guess it" funnel exists for
+smart contracts — [AegisForge](https://github.com/goun7/temporit) (aegisforge)
+scans EVM bytecode through metamorphic + SMT gates and mints a signed
+*kanıt* over the findings, the way pgHeal's report carries the planner's own
+cost numbers. Same customer, same sales motion ("DB + contract security"),
+different oracle. The pairing and its pricing logic live in the mesh map
+under `00_TAMGA-MESH/orkestrasyon/PORTFOY_SINERJI_HARITASI_2026-09-24.md`.
+
 
 ## Quick start (demo in 60 seconds)
 
