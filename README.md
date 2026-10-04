@@ -38,6 +38,18 @@ answer is what the planner would actually do — not a guess about it.
 Deterministic advice, no training corpus to keep current, and no data
 leaving the instance.
 
+That position is also where the recent literature has landed. *A Case for
+Agentic Tuning* (Lin et al., [arXiv:2605.19988](https://arxiv.org/abs/2605.19988),
+May 2026) argues that static per-parameter documentation should become
+*executable* skills an LLM agent can run with version-consistency checks —
+the same shift from "documented recommendation" to "verified action" that
+pgHeal's proven-recommendation loop embodies. PLRTune (Yang et al.,
+[arXiv:2606.14312](https://arxiv.org/abs/2606.14312), Jun 2026) keeps an
+LLM in the loop for knob tuning but relies on reinforcement learning over
+sampled configurations; pgHeal deliberately avoids the sampling loop — the
+planner itself is the oracle, so each candidate is *proven* rather than
+reward-estimated.
+
 </details>
 
 
