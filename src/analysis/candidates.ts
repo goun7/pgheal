@@ -9,14 +9,14 @@ import { fingerprint, normalizeSql } from "./normalize.js";
 const FORBIDDEN_TABLES = /(pg_catalog|information_schema|pg_stat|pgheal)/i;
 export { FORBIDDEN_TABLES };
 
-interface QueryShape {
+export interface QueryShape {
   tables: string[];
   predicates: Predicate[];
   orderBy: string[];
   groupBy: string[];
 }
 
-function stripWhitespace(s: string): string {
+export function stripWhitespace(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
@@ -31,7 +31,7 @@ const REGION_STOP =
  * Text after a keyword until the enclosing clause or paren ends.
  * Depth starts at 0 for the region itself; a `)` closing an outer paren ends it.
  */
-function regionUntil(norm: string, start: number): string {
+export function regionUntil(norm: string, start: number): string {
   let depth = 0;
   for (let i = start; i < norm.length; i++) {
     const ch = norm[i]!;
@@ -48,7 +48,7 @@ function regionUntil(norm: string, start: number): string {
 }
 
 /** Every `<keyword> <region>` occurrence — subqueries and CTE bodies included. */
-function keywordRegions(norm: string, keyword: RegExp): string[] {
+export function keywordRegions(norm: string, keyword: RegExp): string[] {
   const out: string[] = [];
   const re = new RegExp(keyword.source, "gi");
   let m: RegExpExecArray | null;
@@ -59,7 +59,7 @@ function keywordRegions(norm: string, keyword: RegExp): string[] {
 }
 
 /** CTE names (`name AS (` / `name (cols) AS (`) are not physical tables. */
-function cteNames(norm: string): Set<string> {
+export function cteNames(norm: string): Set<string> {
   const out = new Set<string>();
   const re = /([A-Za-z_][\w]*)\s*(?:\([^)]*\))?\s+AS\s*\(/gi;
   let m: RegExpExecArray | null;
@@ -142,13 +142,13 @@ export function extractShape(sql: string): QueryShape {
   return shape;
 }
 
-function stripAlias(t: string): string {
+export function stripAlias(t: string): string {
   // "public.orders" -> "orders" ; strip schema qualification for candidate naming
   const bare = t.includes(".") ? t.split(".").pop()! : t;
   return bare.replace(/"/g, "");
 }
 
-function classifyPredicate(p: string): "equality" | "range" | null {
+export function classifyPredicate(p: string): "equality" | "range" | null {
   if (/\b(IS\s+NULL|IS\s+NOT\s+NULL)\b/i.test(p)) return null;
   if (/[=]/.test(p.replace(/[!=<>]=?/g, "")) || /[^<>=!]=[^=]/.test(p) || /=/.test(p)) {
     // equality if '=' present and not part of <=, >=, !=, <>
@@ -231,7 +231,7 @@ export function brinEligibleColumns(predicates: Predicate[]): string[] {
 }
 
 /** Extract bare column names from a predicate fragment (both sides of an operator). */
-function columnsOfPredicate(p: string): string[] {
+export function columnsOfPredicate(p: string): string[] {
   const out: string[] = [];
   // left side: e.g. "o.user_id" / "user_id" / "LOWER(email)" (function call skipped in v0.1)
   const left = /([A-Za-z_][\w.]*)\s*(?:=|<>|!=|<=|>=|<|>|\bBETWEEN\b|\bIN\b|\bLIKE\b|\bILIKE\b)/i.exec(p);
@@ -250,13 +250,13 @@ function columnsOfPredicate(p: string): string[] {
   return [...new Set(out)];
 }
 
-function columnName(c: string): string {
+export function columnName(c: string): string {
   const bare = c.replace(/\s+(ASC|DESC)\b/i, "").replace(/"/g, "");
   return bare.includes(".") ? bare.split(".").pop()! : bare;
 }
 
 /** Split on AND at paren-depth 0 (top level only). */
-function splitTopLevel(s: string): string[] {
+export function splitTopLevel(s: string): string[] {
   const out: string[] = [];
   let depth = 0;
   let cur = "";
