@@ -1,0 +1,40 @@
+{
+  "engine_version": "0.5.0",
+  "kanit_format_version": "1",
+  "timestamp": 1791193452,
+  "chain_id": null,
+  "findings": [
+    {
+      "contract": "AcmeVault",
+      "function": "skim(address,uint256)",
+      "invariant_id": "AF-INV-102",
+      "severity": "critical",
+      "witness": "pre_bal_a=5 -> bal_a=0",
+      "block_number": null
+    },
+    {
+      "contract": "DilutionVault",
+      "function": "inflate(uint256)",
+      "invariant_id": "AF-INV-101",
+      "severity": "high",
+      "witness": "total rises, nobody credited",
+      "block_number": 18000000
+    },
+    {
+      "contract": "BackdoorVault",
+      "function": "redirect(address)",
+      "invariant_id": "AF-INV-102",
+      "severity": "critical",
+      "witness": "bal_a 9 -> 1",
+      "block_number": null
+    }
+  ],
+  "merkle_root": "0xce2e26368d3862713f9e4eab71df497d4ded31d11353e2561237b993c55d215c",
+  "kanit_hash": "0x70dc5607fec3e6eeaa0efbd5df518d55b8bfe3c5365b50de29ca6292fd81d815",
+  "signer": {
+    "address": "0x8a5e6263df4fa30aa61dd36a4b93ebfe68003449",
+    "pubkey": "0x599fba020e74c521a787b02ea71f2b3be882dcf197a606ac16908290cc749364d9865a1177c34e30ae4f688aa9efa9faa11bf4d1307373cd82fe82d8fc774c47",
+    "did": null
+  },
+  "signature": "0xc9714b4bfed51e455e35ef9ca9eac5a5223079449d50e45acf0b6aea5fe2b51c5be0d1fb0be83896524320ecf0a83928fd912b12652f2800d60c09f1be349cb3"
+}

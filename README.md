@@ -58,7 +58,10 @@ scans EVM bytecode through metamorphic + SMT gates and mints a signed
 *kanıt* over the findings, the way pgHeal's report carries the planner's own
 cost numbers. Same customer, same sales motion ("DB + contract security"),
 different oracle. The pairing and its pricing logic live in the mesh map
-under `00_TAMGA-MESH/orkestrasyon/PORTFOY_SINERJI_HARITASI_2026-09-24.md`.
+under `00_TAMGA-MESH/orkestrasyon/PORTFOY_SINERJI_HARITASI_2026-09-24.md`, and
+the **code link** lives in [`src/contract-twin/`](src/contract-twin): it parses
+an AegisForge kanıt, re-verifies its SHA-256 commitment gates in TypeScript, and
+merges it with a pgHeal scan into one dual package — both halves, each proven.
 
 **The regression twin:** optimizing a query is only half the job — the other
 half is not breaking it. PlanLock (18-PlanLock) is pgHeal's mirror image:
@@ -278,6 +281,9 @@ src/
     migrations.ts     sql/prisma/django/rails migration generators
     github.ts         shadow branch + commit + PR (Octokit)
   report/render.ts    markdown + JSON proof reports
+  contract-twin/      AegisForge kanıt ingestion + dual-package bridge (the
+                      contract twin: merges contract-security findings with
+                      this scan, each side carrying its own proof)
 ```
 
 ## Scheduled autonomous scanning (GitHub Action)
