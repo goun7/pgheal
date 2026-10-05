@@ -50,6 +50,43 @@ sampled configurations; pgHeal deliberately avoids the sampling loop — the
 planner itself is the oracle, so each candidate is *proven* rather than
 reward-estimated.
 
+The index-specific literature lands in the same place — and probes it
+directly. *Evaluating the Practical Effectiveness of LLM-Driven Index Tuning
+on Microsoft SQL Server* (Wang et al., [arXiv:2603.09181](https://arxiv.org/abs/2603.09181),
+Mar 2026) comes from the Microsoft team behind the Database Tuning Advisor
+itself, and compares LLM-proposed index configurations against DTA on
+industrial benchmarks and real enterprise workloads. Its finding is the
+sharpest evidence for pgHeal's bet: the LLMs sometimes beat DTA on execution
+time, but they show *high variance* in recommendation quality and are "often
+substantially worse than DTA in terms of optimizer-estimated cost". pgHeal is
+the what-if side of that result, executed in the open — every candidate is
+costed by the planner itself through HypoPG hypothetical indexes, so the
+number in the report is what the planner would actually do, not something the
+model half-remembers from training data. **The difference:** they measure how
+far an LLM can reach *without* the optimizer and where that breaks; pgHeal
+declines to guess — the LLM explains, routes and writes the PR, the planner
+votes.
+
+Two adjacent systems mark the other ends of the design space. AMAZe (Li et
+al., [arXiv:2508.16044](https://arxiv.org/abs/2508.16044), Aug 2025) is the
+zero-shot extreme: a multi-agent framework that decomposes index
+recommendation into planning, selection, combination, revision and reflection,
+and reaches SOTA with no workload demonstrations at all. pgHeal shares the
+agent-shaped loop (candidate → prove → explain → ship the migration) but
+grounds every step in a proven cost rather than zero-shot judgment, and needs
+no demonstration set to keep its advice current. AIM (Yadav/Valluri/Zaït,
+[arXiv:2605.31406](https://arxiv.org/abs/2605.31406), ICDE 2023) is the
+industrial opposite: an automated index manager validated on thousands of
+production databases, shipping a "no regression" guarantee and
+metrics-driven explanations. Notably, one of its headline design choices is
+*reduced reliance on the query optimizer* — precisely the trade pgHeal
+declines, and evidence that the planner-as-oracle position is a deliberate
+fork rather than an oversight. **The difference:** AIM delivers a managed
+guarantee inside one vendor's cloud and argues it with aggregate metrics;
+pgHeal ships the planner's own per-candidate cost numbers together with a
+migration anyone can re-run, and pairs with PlanLock so the "no regression"
+half is enforced at the PR gate instead of promised on a dashboard.
+
 </details>
 
 **The contract twin:** the same "prove it, don't guess it" funnel exists for
